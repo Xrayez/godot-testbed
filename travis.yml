@@ -1,0 +1,50 @@
+language: cpp
+
+# OS config, depends on actual 'os' in build matrix
+dist: xenial
+
+stages:
+  - build
+
+env:
+  global:
+    - SCONS_CACHE=$HOME/.scons_cache/$TRAVIS_BRANCH
+    - SCONS_CACHE_LIMIT=1024
+    - OPTIONS="debug_symbols=no verbose=yes progress=no builtin_libpng=yes"
+    - GODOT_REPO_URL="https://github.com/godotengine/godot"
+    - GODOT_DIR="godot"
+
+cache:
+  directories:
+    - $SCONS_CACHE
+
+matrix:
+  include:
+    - name: Linux headless editor (release_debug, GCC 9)
+      stage: build
+      env: PLATFORM=server TOOLS=yes TARGET=release_debug CACHE_NAME=${PLATFORM}-tools-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="bin/godot_server.x11.opt.tools.64"
+      os: linux
+      compiler: gcc-9
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *gcc9_deps
+            - *linux_deps
+
+before_install:
+  - eval "${MATRIX_EVAL}"
+
+install:
+  - pip install --user scons;
+  
+before_script:
+  - cd
+  - git clone --depth=1 "$GODOT_REPO_URL"
+  - cd "godot/"
+
+script:
+  - scons -j2 CC=$CC CXX=$CXX platform=$PLATFORM tools=$TOOLS target=$TARGET $OPTIONS $EXTRA_ARGS
+  - cd ..
+  - bash test.sh
