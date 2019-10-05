@@ -3,7 +3,13 @@ language: cpp
 # OS config, depends on actual 'os' in build matrix
 dist: xenial
 
+notifications:
+  email:
+    on_success: never
+    on_failure: never
+
 stages:
+  - check
   - build
 
 env:
@@ -12,7 +18,8 @@ env:
     - SCONS_CACHE_LIMIT=1024
     - OPTIONS="debug_symbols=no verbose=yes progress=no builtin_libpng=yes"
     - GODOT_REPO_URL="https://github.com/godotengine/godot"
-    - GODOT_DIR="godot"
+    - GODOT_DIR="$HOME/godot/"
+    - GODOT_BINARY_DIR="$HOME/godot/bin/"
 
 cache:
   directories:
@@ -20,9 +27,34 @@ cache:
 
 matrix:
   include:
+    - name: Linux editor (debug, GCC 9, with Mono)
+      stage: build
+      env: PLATFORM=x11 TOOLS=yes TARGET=debug CACHE_NAME=${PLATFORM}-tools-mono-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="module_mono_enabled=yes mono_glue=no warnings=extra werror=yes"
+      os: linux
+      compiler: gcc-9
+      addons:
+        apt:
+          sources:
+            - mono
+            - ubuntu-toolchain-r-test
+          packages:
+            - &gcc9_deps [gcc-9, g++-9]
+            - &linux_deps [libasound2-dev, libgl1-mesa-dev, libglu1-mesa-dev, libx11-dev, libxcursor-dev, libxi-dev, libxinerama-dev, libxrandr-dev]
+            - &linux_mono_deps [mono-devel, msbuild, nuget]
+
+    - name: Linux export template (release, Clang)
+      stage: build
+      env: PLATFORM=x11 TOOLS=no TARGET=release CACHE_NAME=${PLATFORM}-clang EXTRA_ARGS="warnings=extra werror=yes"
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          packages:
+            - *linux_deps
+
     - name: Linux headless editor (release_debug, GCC 9)
       stage: build
-      env: PLATFORM=server TOOLS=yes TARGET=release_debug CACHE_NAME=${PLATFORM}-tools-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="bin/godot_server.x11.opt.tools.64"
+      env: PLATFORM=server TOOLS=yes TARGET=release_debug CACHE_NAME=${PLATFORM}-tools-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="godot_server.x11.opt.tools.64"
       os: linux
       compiler: gcc-9
       addons:
@@ -33,18 +65,31 @@ matrix:
             - *gcc9_deps
             - *linux_deps
 
+    - name: Linux export template (release_debug, GCC 5, without 3D support)
+      stage: build
+      env: PLATFORM=x11 TOOLS=no TARGET=release_debug CACHE_NAME=${PLATFORM}-gcc-5 EXTRA_ARGS="disable_3d=yes"
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          packages:
+            - *linux_deps
+
 before_install:
   - eval "${MATRIX_EVAL}"
 
 install:
   - pip install --user scons;
-  
+
 before_script:
-  - cd
-  - git clone --depth=1 "$GODOT_REPO_URL"
-  - cd "godot/"
+  - echo "$TRAVIS_BUILD_DIR"
+  - cd "$HOME"
+  - git clone --depth=1 "$GODOT_REPO_URL" && cd "$GODOT_DIR"
 
 script:
-  - scons -j2 CC=$CC CXX=$CXX platform=$PLATFORM tools=$TOOLS target=$TARGET $OPTIONS $EXTRA_ARGS
-  - cd ..
-  - bash test.sh
+  - echo "$GODOT_BINARY_DIR""$GODOT_BINARY"
+  - if [ "$PLATFORM" = "server" ]; then
+      scons -j2 CC=$CC CXX=$CXX platform=$PLATFORM tools=$TOOLS target=$TARGET $OPTIONS $EXTRA_ARGS &&
+      $TRAVIS_BUILD_DIR/test.sh "$GODOT_BINARY_DIR""$GODOT_BINARY";
+    fi
+  
