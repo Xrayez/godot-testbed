@@ -16,7 +16,7 @@ env:
   global:
     - SCONS_CACHE=$HOME/.scons_cache/$TRAVIS_BRANCH
     - SCONS_CACHE_LIMIT=1024
-    - OPTIONS="debug_symbols=no verbose=yes progress=no builtin_libpng=yes"
+    - OPTIONS="debug_symbols=yes verbose=no progress=yes builtin_libpng=yes"
     - GODOT_REPO_URL="https://github.com/godotengine/godot"
     - GODOT_DIR="$HOME/godot/"
     - GODOT_BINARY_DIR="$HOME/godot/bin/"
@@ -27,53 +27,41 @@ cache:
 
 matrix:
   include:
-    - name: Linux editor (debug, GCC 9, with Mono)
+    - name: Linux headless (debug, GCC 9, with editor)
       stage: build
-      env: PLATFORM=x11 TOOLS=yes TARGET=debug CACHE_NAME=${PLATFORM}-tools-mono-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="module_mono_enabled=yes mono_glue=no warnings=extra werror=yes"
+      env: PLATFORM=server TOOLS=yes TARGET=debug CACHE_NAME=${PLATFORM}-tools-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="godot_server.x11.tools.64"
       os: linux
       compiler: gcc-9
       addons:
         apt:
           sources:
-            - mono
             - ubuntu-toolchain-r-test
           packages:
             - &gcc9_deps [gcc-9, g++-9]
             - &linux_deps [libasound2-dev, libgl1-mesa-dev, libglu1-mesa-dev, libx11-dev, libxcursor-dev, libxi-dev, libxinerama-dev, libxrandr-dev]
-            - &linux_mono_deps [mono-devel, msbuild, nuget]
-
-    - name: Linux export template (release, Clang)
+            
+    - name: Linux headless (release_debug, GCC 9, no editor)
       stage: build
-      env: PLATFORM=x11 TOOLS=no TARGET=release CACHE_NAME=${PLATFORM}-clang EXTRA_ARGS="warnings=extra werror=yes"
+      env: PLATFORM=server TOOLS=no TARGET=release_debug CACHE_NAME=${PLATFORM}-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="godot_server.x11.opt.debug.64"
+      os: linux
+      compiler: gcc-9
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - &gcc9_deps [gcc-9, g++-9]
+            - &linux_deps [libasound2-dev, libgl1-mesa-dev, libglu1-mesa-dev, libx11-dev, libxcursor-dev, libxi-dev, libxinerama-dev, libxrandr-dev]
+
+    - name: Linux headless (release, clang)
+      stage: build
+      env: PLATFORM=server TOOLS=no TARGET=release CACHE_NAME=${PLATFORM}-clang EXTRA_ARGS="warnings=extra werror=no" GODOT_BINARY="godot_server.x11.opt.64.llvm"
       os: linux
       compiler: clang
       addons:
         apt:
           packages:
-            - *linux_deps
-
-    - name: Linux headless editor (release_debug, GCC 9)
-      stage: build
-      env: PLATFORM=server TOOLS=yes TARGET=release_debug CACHE_NAME=${PLATFORM}-tools-gcc-9 MATRIX_EVAL="CC=gcc-9 && CXX=g++-9" EXTRA_ARGS="warnings=extra werror=yes" GODOT_BINARY="godot_server.x11.opt.tools.64"
-      os: linux
-      compiler: gcc-9
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - *gcc9_deps
-            - *linux_deps
-
-    - name: Linux export template (release_debug, GCC 5, without 3D support)
-      stage: build
-      env: PLATFORM=x11 TOOLS=no TARGET=release_debug CACHE_NAME=${PLATFORM}-gcc-5 EXTRA_ARGS="disable_3d=yes"
-      os: linux
-      compiler: gcc
-      addons:
-        apt:
-          packages:
-            - *linux_deps
+            - &linux_deps [libasound2-dev, libgl1-mesa-dev, libglu1-mesa-dev, libx11-dev, libxcursor-dev, libxi-dev, libxinerama-dev, libxrandr-dev]
 
 before_install:
   - eval "${MATRIX_EVAL}"
@@ -82,14 +70,15 @@ install:
   - pip install --user scons;
 
 before_script:
-  - echo "$TRAVIS_BUILD_DIR"
   - cd "$HOME"
   - git clone --depth=1 "$GODOT_REPO_URL" && cd "$GODOT_DIR"
 
 script:
-  - echo "$GODOT_BINARY_DIR""$GODOT_BINARY"
-  - if [ "$PLATFORM" = "server" ]; then
-      scons -j2 CC=$CC CXX=$CXX platform=$PLATFORM tools=$TOOLS target=$TARGET $OPTIONS $EXTRA_ARGS &&
-      $TRAVIS_BUILD_DIR/test.sh "$GODOT_BINARY_DIR""$GODOT_BINARY";
+  - scons -j2 CC=$CC CXX=$CXX platform=$PLATFORM tools=$TOOLS target=$TARGET $OPTIONS $EXTRA_ARGS &&
+    if [ "$TARGET" != "release" ]; then
+      if [ "$PLATFORM" = "server" ]; then
+        $TRAVIS_BUILD_DIR/test.sh "$GODOT_BINARY_DIR""$GODOT_BINARY";
+      else
+        $TRAVIS_BUILD_DIR/test.sh "$GODOT_BINARY_DIR""$GODOT_BINARY" --no-window;
+      fi
     fi
-  
