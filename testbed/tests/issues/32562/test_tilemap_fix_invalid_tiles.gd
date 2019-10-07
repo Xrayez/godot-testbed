@@ -4,12 +4,9 @@ class TileMapFixInvalidTilesCrash extends TileMap:
 
 	# https://github.com/godotengine/godot/issues/32562
 
-	func _process(delta):
-		fix_invalid_tiles()
+	func _ready():
 		set_cell(0,0,0)
 		fix_invalid_tiles()
-		set_cell(0,0,0)
-		clear()
 		
 var map
 
