@@ -14,7 +14,7 @@ stages:
 
 env:
   global:
-    - SCONS_CACHE=$HOME/.scons_cache/$TRAVIS_BRANCH
+    - SCONS_CACHE=$HOME/.scons_cache
     - SCONS_CACHE_LIMIT=1024
     - OPTIONS="debug_symbols=yes verbose=no progress=yes builtin_libpng=yes"
     - GODOT_REPO_URL="https://github.com/godotengine/godot"
