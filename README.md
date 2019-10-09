@@ -11,28 +11,22 @@ If you see any tests failing, you can report them here (as tests may fail due to
 lack of maintainance, so they have to be updated) or directly at Godot repository
 (if not already).
 
-## Usage
+# Usage
 
-Run tests with `./test.sh <Godot path> [command line args]`.
+- [x] Linux (Bash): `./test.sh <Godot path> [command line args]`.
+- [ ] Windows (Powershell): `./test` (Godot binary must be in your PATH).
 
-### What works
+## Process
 
 1. Clones latest Godot Engine version and compiles with Travis CI.
 2. Runs tests (with GUT) using compiled Linux Server binaries for targets:
-    - `debug`
-    - `release_debug`
-    
-### What doesn't work
+    - [x] `debug`;
+    - [x] `release_debug`;
+    - [ ] `release`.
 
-1. Runnings tests in release mode (needs exporting).
-
-### Useful for:
+## Use cases
 
 - script and core testing (what's exposed);
-- issues testing present at Godot's main repository:
-    - test logs can be linked to issue descriptions;
-- preventing regressions and crashes to occur.
-
-### Not really useful for:
-
-* Editor (UI) testing (requires video driver)
+- issues testing present at Godot's main repository;
+- preventing regressions and crashes to occur;
+- editor (UI) testing (requires video driver, not all can be easily tested).
