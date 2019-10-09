@@ -12,4 +12,3 @@ func test_generate_self_signed_certificate():
 	var cert = cr.generate_self_signed_certificate(key)
 	
 	assert_true(true, "No crash, great!")
-	
